@@ -33,6 +33,12 @@ export default function RootLayout({
               <Button color="inherit" component={Link} href="/equipment">
                 Equipment
               </Button>
+              <Button color="inherit" component={Link} href="/quotes">
+                Quotes
+              </Button>
+              <Button color="inherit" component={Link} href="/settings">
+                Settings
+              </Button>
             </Toolbar>
           </AppBar>
           <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
