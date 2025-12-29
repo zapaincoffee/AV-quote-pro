@@ -1,7 +1,15 @@
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+
 export default function HomePage() {
   return (
-    <main className="bg-white min-h-screen p-8">
-      <h1 className="text-black text-2xl">Welcome to AV Quote Pro</h1>
-    </main>
+    <Box sx={{ my: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Welcome to AV Quote Pro Dashboard
+      </Typography>
+      <Typography variant="body1">
+        This is your central hub for managing AV equipment quotes and services.
+      </Typography>
+    </Box>
   );
 }
