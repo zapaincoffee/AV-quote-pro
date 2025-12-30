@@ -63,7 +63,7 @@ const SectionTable = ({ sectionData, onSectionUpdate }: { sectionData: QuoteSect
     columns,
     getCoreRowModel: getCoreRowModel(),
     meta: {
-      updateData: (rowIndex, columnId, value) => {
+      updateData: (rowIndex: number, columnId: string, value: unknown) => {
         const newItems = sectionData.items.map((row, index) => {
           if (index === rowIndex) {
             const updatedRow = {
