@@ -1,14 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  RowData,
-} from '@tanstack/react-table';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -23,12 +16,11 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import EditableCell from '@/components/EditableCell'; // Import the new component
+import TableContainer from '@mui/material/TableContainer';
 
 // --- Data Structures ---
-
 type QuoteItem = {
-  itemNumber: string;
+  id: string;
   name: string;
   quantity: number;
   days: number;
@@ -43,88 +35,13 @@ type QuoteSection = {
   items: QuoteItem[];
 };
 
-// --- Column Definitions ---
-const columnHelper = createColumnHelper<QuoteItem>();
-const columns = [
-  columnHelper.accessor('itemNumber', { cell: info => info.getValue(), header: () => <span>#</span>, size: 20 }),
-  columnHelper.accessor('name', { cell: (props) => <EditableCell {...props} />, header: () => <span>Item Name</span>, size: 300 }),
-  columnHelper.accessor('quantity', { cell: (props) => <EditableCell {...props} />, header: () => <span>Qty</span>, size: 50, meta: { type: 'number' } }),
-  columnHelper.accessor('days', { cell: (props) => <EditableCell {...props} />, header: () => <span>Days</span>, size: 50, meta: { type: 'number' } }),
-  columnHelper.accessor('pricePerDay', { cell: (props) => <EditableCell {...props} />, header: () => <span>Price/Day</span>, size: 80, meta: { type: 'number' } }),
-  columnHelper.accessor('total', { cell: info => `$${info.getValue().toFixed(2)}`, header: () => <span>Total</span>, size: 100 }),
-  columnHelper.accessor('note', { cell: (props) => <EditableCell {...props} />, header: () => <span>Note</span> }),
-];
-
-
-// --- Section Table Component ---
-const SectionTable = ({ sectionData, onSectionUpdate }: { sectionData: QuoteSection, onSectionUpdate: (sectionId: string, items: QuoteItem[]) => void }) => {
-  const table = useReactTable({
-    data: sectionData.items,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    meta: {
-      updateData: (rowIndex: number, columnId: string, value: unknown) => {
-        const newItems = sectionData.items.map((row, index) => {
-          if (index === rowIndex) {
-            const updatedRow = {
-              ...sectionData.items[rowIndex]!,
-              [columnId]: value,
-            };
-            // Recalculate total for the row
-            const qty = Number(updatedRow.quantity) || 0;
-            const days = Number(updatedRow.days) || 0;
-            const price = Number(updatedRow.pricePerDay) || 0;
-            updatedRow.total = qty * days * price; // Simple multiplication for now
-            return updatedRow;
-          }
-          return row;
-        });
-        onSectionUpdate(sectionData.id, newItems);
-      },
-    },
-  });
-
-  return (
-    <Table stickyHeader size="small">
-      <TableHead>
-        {table.getHeaderGroups().map(headerGroup => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map(header => (
-              <TableCell key={header.id} sx={{ width: header.getSize(), fontWeight: 'bold' }}>
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableHead>
-      <TableBody>
-        {table.getRowModel().rows.map(row => (
-          <TableRow key={row.id}>
-            {row.getVisibleCells().map(cell => (
-              <TableCell key={cell.id} sx={{ width: cell.column.getSize(), p: 0 }}>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-};
-
-
 // --- Main Component ---
 export default function NewQuotePage() {
   const router = useRouter();
   const [grandTotal, setGrandTotal] = useState(0);
   const [sections, setSections] = useState<QuoteSection[]>([
-    { id: '1', name: 'Video', items: [
-      { itemNumber: '1.1', name: 'Projector 5K', quantity: 1, days: 2, pricePerDay: 250, total: 500, note: ''},
-    ]},
-    { id: '2', name: 'Audio', items: [
-      { itemNumber: '2.1', name: 'Shure SM58', quantity: 4, days: 2, pricePerDay: 10, total: 80, note: ''},
-      { itemNumber: '2.2', name: 'Soundcraft Mixer', quantity: 1, days: 2, pricePerDay: 50, total: 100, note: ''},
-    ]}
+    { id: '1', name: 'Video', items: []},
+    { id: '2', name: 'Audio', items: []}
   ]);
 
   // Recalculate grand total whenever sections change
@@ -135,6 +52,58 @@ export default function NewQuotePage() {
     setGrandTotal(total);
   }, [sections]);
 
+  const handleItemChange = (sectionId: string, itemId: string, field: keyof QuoteItem, value: any) => {
+    setSections(prevSections => {
+      return prevSections.map(section => {
+        if (section.id === sectionId) {
+          const newItems = section.items.map(item => {
+            if (item.id === itemId) {
+              const updatedItem = { ...item, [field]: value };
+              // Recalculate total for the row
+              if (['quantity', 'days', 'pricePerDay'].includes(field)) {
+                  const qty = field === 'quantity' ? Number(value) : item.quantity;
+                  const days = field === 'days' ? Number(value) : item.days;
+                  const price = field === 'pricePerDay' ? Number(value) : item.pricePerDay;
+                  updatedItem.total = (qty || 0) * (days || 0) * (price || 0);
+              }
+              return updatedItem;
+            }
+            return item;
+          });
+          return { ...section, items: newItems };
+        }
+        return section;
+      });
+    });
+  };
+
+  const addItem = (sectionId: string) => {
+    setSections(prev => prev.map(s => {
+      if (s.id === sectionId) {
+        const newItem: QuoteItem = {
+          id: Date.now().toString(),
+          name: '',
+          quantity: 1,
+          days: 1,
+          pricePerDay: 0,
+          total: 0,
+          note: ''
+        };
+        return { ...s, items: [...s.items, newItem] };
+      }
+      return s;
+    }));
+  };
+  
+  const removeItem = (sectionId: string, itemId: string) => {
+     setSections(prev => prev.map(s => {
+        if (s.id === sectionId) {
+            return { ...s, items: s.items.filter(i => i.id !== itemId) };
+        }
+        return s;
+     }));
+  };
+
   const addSection = () => {
     const newSectionName = `New Section ${sections.length + 1}`;
     setSections(prev => [...prev, { id: Date.now().toString(), name: newSectionName, items: [] }]);
@@ -144,10 +113,6 @@ export default function NewQuotePage() {
     setSections(prev => prev.filter(s => s.id !== sectionId));
   };
   
-  const updateSectionItems = (sectionId: string, updatedItems: QuoteItem[]) => {
-    setSections(prev => prev.map(s => s.id === sectionId ? { ...s, items: updatedItems } : s));
-  };
-
   return (
     <Box sx={{ my: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -155,27 +120,56 @@ export default function NewQuotePage() {
         <Typography variant="h4" component="h1">Create New Quote</Typography>
       </Box>
 
-      {/* Event Details Section */}
+      {/* Event Details */}
       <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>Event Details</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
-          <TextField label="Event Name" variant="outlined" required />
-          <TextField label="Client Name" variant="outlined" required />
+          <TextField label="Event Name" variant="outlined" />
+          <TextField label="Client Name" variant="outlined" />
           <TextField label="Prep Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
-          <TextField label="Start Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} required />
-          <TextField label="End Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} required />
+          <TextField label="Start Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
+          <TextField label="End Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
         </Box>
       </Paper>
 
       {/* Sections */}
       {sections.map((section) => (
-        <Paper key={section.id} elevation={2} sx={{ p: 2, mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Typography variant="h6" sx={{ flexGrow: 1 }}>{section.name}</Typography>
-                <IconButton size="small" onClick={() => {}}><AddIcon /></IconButton>
-                <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
-            </Box>
-            <SectionTable sectionData={section} onSectionUpdate={updateSectionItems} />
+        <Paper key={section.id} elevation={2} sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="h6" sx={{ flexGrow: 1 }}>{section.name}</Typography>
+              <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
+          </Box>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Item Name</TableCell>
+                  <TableCell align="right">Qty</TableCell>
+                  <TableCell align="right">Days</TableCell>
+                  <TableCell align="right">Price/Day</TableCell>
+                  <TableCell align="right">Total</TableCell>
+                  <TableCell>Note</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {section.items.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell><TextField variant="standard" fullWidth value={item.name} onChange={e => handleItemChange(section.id, item.id, 'name', e.target.value)} /></TableCell>
+                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.quantity} onChange={e => handleItemChange(section.id, item.id, 'quantity', e.target.value)} /></TableCell>
+                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.days} onChange={e => handleItemChange(section.id, item.id, 'days', e.target.value)} /></TableCell>
+                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.pricePerDay} onChange={e => handleItemChange(section.id, item.id, 'pricePerDay', e.target.value)} /></TableCell>
+                    <TableCell align="right">${item.total.toFixed(2)}</TableCell>
+                    <TableCell><TextField variant="standard" fullWidth value={item.note} onChange={e => handleItemChange(section.id, item.id, 'note', e.target.value)} /></TableCell>
+                    <TableCell><IconButton size="small" onClick={() => removeItem(section.id, item.id)}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-start' }}>
+            <Button startIcon={<AddIcon />} onClick={() => addItem(section.id)}>Add Item</Button>
+          </Box>
         </Paper>
       ))}
 
@@ -194,4 +188,3 @@ export default function NewQuotePage() {
     </Box>
   );
 }
-

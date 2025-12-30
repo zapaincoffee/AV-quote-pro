@@ -24,7 +24,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mui/icons-material": "^7.3.6",
-    "@tanstack/react-table": "^8.21.3"
+    "@mui/icons-material": "^7.3.6"
   }
 }
