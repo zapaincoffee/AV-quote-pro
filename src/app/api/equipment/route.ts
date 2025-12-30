@@ -1,46 +1,31 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
-const equipmentFilePath = path.join(process.cwd(), 'src/data/equipment.json');
-
-// Helper function to read equipment data
-async function getEquipmentData() {
-  const data = await fs.readFile(equipmentFilePath, 'utf-8');
-  return JSON.parse(data);
-}
-
-// Helper function to write equipment data
-async function setEquipmentData(data: any) {
-  await fs.writeFile(equipmentFilePath, JSON.stringify(data, null, 2));
-}
-
-// GET /api/equipment - Get all equipment
+// GET /api/equipment - Fetches assets from the shelf.nu 'Asset' table
 export async function GET() {
-  try {
-    const equipment = await getEquipmentData();
-    return NextResponse.json(equipment);
-  } catch (error) {
-    console.error('Failed to read equipment data:', error);
-    return NextResponse.json({ message: 'Error reading equipment data' }, { status: 500 });
+  // We only fetch a subset of fields needed for the quote.
+  // We also assume 'valuation' is the daily price.
+  const { data, error } = await supabase
+    .from('Asset')
+    .select('id, title, description, valuation, status')
+    .eq('availableToBook', true); // Only fetch items that are available to book
+
+  if (error) {
+    console.error('Error fetching assets from shelf.nu:', error);
+    return NextResponse.json({ message: 'Error fetching assets' }, { status: 500 });
   }
+
+  // Map the 'Asset' fields to our application's 'Equipment' fields
+  const equipment = data.map(asset => ({
+      id: asset.id,
+      name: asset.title,
+      description: asset.description,
+      dailyPrice: asset.valuation || 0, // Default to 0 if valuation is null
+      status: asset.status,
+  }));
+
+  return NextResponse.json(equipment);
 }
 
-// POST /api/equipment - Add new equipment
-export async function POST(req: NextRequest) {
-  try {
-    const newEquipment = await req.json();
-    const equipment = await getEquipmentData();
-
-    // Generate a simple unique ID
-    const id = Date.now().toString(); // Basic ID generation for prototype
-
-    equipment.push({ id, ...newEquipment });
-    await setEquipmentData(equipment);
-
-    return NextResponse.json({ message: 'Equipment added successfully', id }, { status: 201 });
-  } catch (error) {
-    console.error('Failed to add equipment:', error);
-    return NextResponse.json({ message: 'Error adding equipment' }, { status: 500 });
-  }
-}
+// POST endpoint is intentionally removed to avoid modifying shelf.nu's asset list directly.
+// Asset management should be done via the shelf.nu interface.

@@ -24,6 +24,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@mui/icons-material": "^7.3.6"
+    "@mui/icons-material": "^7.3.6",
+    "@supabase/supabase-js": "^2.89.0"
   }
 }

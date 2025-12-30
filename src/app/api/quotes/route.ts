@@ -29,13 +29,20 @@ export async function GET() {
 // POST /api/quotes - Add new quote
 export async function POST(req: NextRequest) {
   try {
-    const newQuote = await req.json();
+    const quoteData = await req.json();
     const quotes = await getQuotesData();
 
     // Generate a simple unique ID
     const id = Date.now().toString();
+    
+    // Structure the new quote
+    const newQuote = {
+      id,
+      ...quoteData,
+      createdAt: new Date().toISOString()
+    };
 
-    quotes.push({ id, ...newQuote });
+    quotes.push(newQuote);
     await setQuotesData(quotes);
 
     return NextResponse.json({ message: 'Quote created successfully', id }, { status: 201 });

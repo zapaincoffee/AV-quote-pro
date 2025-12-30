@@ -13,20 +13,33 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import TableContainer from '@mui/material/TableContainer';
+import InputAdornment from '@mui/material/InputAdornment';
+import Select from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 
 // --- Data Structures ---
+type EquipmentItem = {
+  id: string;
+  name: string;
+  description: string;
+  dailyPrice: number;
+};
+
+type ItemType = 'Equipment' | 'Labor' | 'Logistics' | 'Other';
+
 type QuoteItem = {
   id: string;
   name: string;
+  type: ItemType;
   quantity: number;
   days: number;
   pricePerDay: number;
+  costPerDay: number; // Internal cost
   total: number;
+  totalCost: number; // Internal total cost
   note?: string;
+  equipmentId?: string;
 };
 
 type QuoteSection = {
@@ -39,18 +52,54 @@ type QuoteSection = {
 export default function NewQuotePage() {
   const router = useRouter();
   const [grandTotal, setGrandTotal] = useState(0);
+  const [totalCost, setTotalCost] = useState(0);
+  const [discount, setDiscount] = useState<number>(0);
+  const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
+  const [eventDetails, setEventDetails] = useState({
+    eventName: '',
+    clientName: '',
+    prepDate: '',
+    startDate: '',
+    endDate: ''
+  });
   const [sections, setSections] = useState<QuoteSection[]>([
     { id: '1', name: 'Video', items: []},
     { id: '2', name: 'Audio', items: []}
   ]);
 
-  // Recalculate grand total whenever sections change
+  // Fetch equipment on load
   useEffect(() => {
-    const total = sections.reduce((total, section) => {
+    async function fetchEquipment() {
+      try {
+        const response = await fetch('/api/equipment');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableEquipment(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch equipment:', error);
+      }
+    }
+    fetchEquipment();
+  }, []);
+
+  // Recalculate totals whenever sections or discount change
+  useEffect(() => {
+    const rawTotal = sections.reduce((total, section) => {
       return total + section.items.reduce((sectionTotal, item) => sectionTotal + item.total, 0);
     }, 0);
-    setGrandTotal(total);
-  }, [sections]);
+    
+    const rawCost = sections.reduce((total, section) => {
+        return total + section.items.reduce((sectionTotal, item) => sectionTotal + (item.totalCost || 0), 0);
+    }, 0);
+
+    setTotalCost(rawCost);
+    setGrandTotal(rawTotal - discount);
+  }, [sections, discount]);
+
+  const handleEventDetailsChange = (field: string, value: string) => {
+    setEventDetails(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleItemChange = (sectionId: string, itemId: string, field: keyof QuoteItem, value: any) => {
     setSections(prevSections => {
@@ -59,11 +108,15 @@ export default function NewQuotePage() {
           const newItems = section.items.map(item => {
             if (item.id === itemId) {
               const updatedItem = { ...item, [field]: value };
-              if (['quantity', 'days', 'pricePerDay'].includes(field)) {
+              
+              if (['quantity', 'days', 'pricePerDay', 'costPerDay'].includes(field)) {
                   const qty = field === 'quantity' ? Number(value) : item.quantity;
                   const days = field === 'days' ? Number(value) : item.days;
                   const price = field === 'pricePerDay' ? Number(value) : item.pricePerDay;
+                  const cost = field === 'costPerDay' ? Number(value) : (item.costPerDay || 0);
+                  
                   updatedItem.total = (qty || 0) * (days || 0) * (price || 0);
+                  updatedItem.totalCost = (qty || 0) * (days || 0) * (cost || 0);
               }
               return updatedItem;
             }
@@ -76,17 +129,21 @@ export default function NewQuotePage() {
     });
   };
 
-  const addItem = (sectionId: string) => {
+  const addItem = (sectionId: string, equipment?: EquipmentItem) => {
     setSections(prev => prev.map(s => {
       if (s.id === sectionId) {
         const newItem: QuoteItem = {
           id: Date.now().toString(),
-          name: '',
+          name: equipment?.name || '',
+          type: 'Equipment',
           quantity: 1,
           days: 1,
-          pricePerDay: 0,
-          total: 0,
-          note: ''
+          pricePerDay: equipment?.dailyPrice || 0,
+          costPerDay: 0, // Default cost to 0, user enters it
+          total: equipment?.dailyPrice || 0,
+          totalCost: 0,
+          note: '',
+          equipmentId: equipment?.id
         };
         return { ...s, items: [...s.items, newItem] };
       }
@@ -111,6 +168,36 @@ export default function NewQuotePage() {
   const removeSection = (sectionId: string) => {
     setSections(prev => prev.filter(s => s.id !== sectionId));
   };
+
+  const handleSave = async () => {
+    try {
+      const quoteData = {
+        ...eventDetails,
+        sections,
+        discount,
+        total: grandTotal,
+        totalCost, // Save internal cost for reporting
+        eventDate: eventDetails.startDate
+      };
+
+      const response = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(quoteData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save quote');
+      }
+
+      router.push('/quotes');
+    } catch (error) {
+      console.error('Error saving quote:', error);
+      alert('Error saving quote. Please try again.');
+    }
+  };
   
   return (
     <Box>
@@ -123,12 +210,43 @@ export default function NewQuotePage() {
       <Paper sx={{ p: {xs: 2, md: 3}, mb: 4 }}>
         <Typography variant="h6" gutterBottom>Event Details</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
-          <TextField label="Event Name" variant="filled" />
-          <TextField label="Client Name" variant="filled" />
+          <TextField 
+            label="Event Name" 
+            variant="filled" 
+            value={eventDetails.eventName}
+            onChange={(e) => handleEventDetailsChange('eventName', e.target.value)}
+          />
+          <TextField 
+            label="Client Name" 
+            variant="filled" 
+            value={eventDetails.clientName}
+            onChange={(e) => handleEventDetailsChange('clientName', e.target.value)}
+          />
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2}}>
-            <TextField label="Prep Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
-            <TextField label="Start Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
-            <TextField label="End Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
+            <TextField 
+              label="Prep Date" 
+              type="date" 
+              variant="filled" 
+              InputLabelProps={{ shrink: true }} 
+              value={eventDetails.prepDate}
+              onChange={(e) => handleEventDetailsChange('prepDate', e.target.value)}
+            />
+            <TextField 
+              label="Start Date" 
+              type="date" 
+              variant="filled" 
+              InputLabelProps={{ shrink: true }} 
+              value={eventDetails.startDate}
+              onChange={(e) => handleEventDetailsChange('startDate', e.target.value)}
+            />
+            <TextField 
+              label="End Date" 
+              type="date" 
+              variant="filled" 
+              InputLabelProps={{ shrink: true }} 
+              value={eventDetails.endDate}
+              onChange={(e) => handleEventDetailsChange('endDate', e.target.value)}
+            />
           </Box>
         </Box>
       </Paper>
@@ -144,24 +262,66 @@ export default function NewQuotePage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Qty</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Days</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: 'error.main' }} align="right">Cost/Day</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Price/Day</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Total</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Note</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
                 {section.items.map((item) => (
                   <TableRow key={item.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                    <TableCell sx={{ p: 0.5 }}><TextField variant="standard" fullWidth value={item.name} onChange={e => handleItemChange(section.id, item.id, 'name', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5, width: '130px' }}>
+                        <Select
+                            variant="standard"
+                            fullWidth
+                            value={item.type || 'Equipment'}
+                            onChange={e => handleItemChange(section.id, item.id, 'type', e.target.value)}
+                        >
+                            <MenuItem value="Equipment">Equipment</MenuItem>
+                            <MenuItem value="Labor">Labor</MenuItem>
+                            <MenuItem value="Logistics">Logistics</MenuItem>
+                            <MenuItem value="Other">Other</MenuItem>
+                        </Select>
+                    </TableCell>
+                    <TableCell sx={{ p: 0.5, minWidth: '200px' }}>
+                      <Autocomplete
+                        freeSolo
+                        options={availableEquipment}
+                        getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                        value={item.name}
+                        onChange={(event, newValue) => {
+                          if (typeof newValue === 'string') {
+                            handleItemChange(section.id, item.id, 'name', newValue);
+                          } else if (newValue && newValue.name) {
+                            handleItemChange(section.id, item.id, 'name', newValue.name);
+                            handleItemChange(section.id, item.id, 'pricePerDay', newValue.dailyPrice);
+                            handleItemChange(section.id, item.id, 'equipmentId', newValue.id);
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} variant="standard" fullWidth placeholder="Item Name" />
+                        )}
+                      />
+                    </TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.quantity} onChange={e => handleItemChange(section.id, item.id, 'quantity', e.target.value)} /></TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.days} onChange={e => handleItemChange(section.id, item.id, 'days', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5, minWidth: '90px' }}>
+                        <TextField 
+                            variant="standard" 
+                            fullWidth 
+                            type="number" 
+                            value={item.costPerDay} 
+                            onChange={e => handleItemChange(section.id, item.id, 'costPerDay', e.target.value)}
+                            InputProps={{ sx: { color: 'error.main' } }}
+                        />
+                    </TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '90px' }}><TextField variant="standard" fullWidth type="number" value={item.pricePerDay} onChange={e => handleItemChange(section.id, item.id, 'pricePerDay', e.target.value)} /></TableCell>
                     <TableCell align="right">${item.total.toFixed(2)}</TableCell>
-                    <TableCell sx={{ p: 0.5 }}><TextField variant="standard" fullWidth value={item.note} onChange={e => handleItemChange(section.id, item.id, 'note', e.target.value)} /></TableCell>
                     <TableCell sx={{ p: 0.5 }}><IconButton size="small" onClick={() => removeItem(section.id, item.id)}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
                   </TableRow>
                 ))}
@@ -169,23 +329,62 @@ export default function NewQuotePage() {
             </Table>
           </TableContainer>
           <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-start' }}>
-            <Button startIcon={<AddIcon />} onClick={() => addItem(section.id)}>Add Item</Button>
+            <Button startIcon={<AddIcon />} onClick={() => addItem(section.id)}>Add Custom Item</Button>
           </Box>
         </Paper>
       ))}
 
       <Button onClick={addSection} variant="outlined" sx={{ mb: 4 }}>Add Section</Button>
 
-      {/* Grand Total */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2, gap: 2 }}>
-          <Typography variant="h5" component="span">Grand Total:</Typography>
-          <Typography variant="h4" component="span">${grandTotal.toFixed(2)}</Typography>
-      </Box>
+      {/* Summary and Actions */}
+      <Paper sx={{ p: 3, mb: 4, maxWidth: '400px', ml: 'auto' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Typography>Subtotal:</Typography>
+            <Typography>${(grandTotal + discount).toFixed(2)}</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography>Discount:</Typography>
+            <TextField 
+                type="number" 
+                variant="standard" 
+                size="small" 
+                sx={{ width: '100px', input: { textAlign: 'right' } }}
+                InputProps={{
+                    startAdornment: <InputAdornment position="start">-$</InputAdornment>,
+                }}
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+            />
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="h6">Grand Total:</Typography>
+            <Typography variant="h6">${grandTotal.toFixed(2)}</Typography>
+        </Box>
+        
+        {/* Internal Metrics - Only for Admin */}
+        <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed grey' }}>
+            <Typography variant="caption" color="text.secondary" display="block">INTERNAL USE ONLY</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="error">Total Cost:</Typography>
+                <Typography variant="body2" color="error">${totalCost.toFixed(2)}</Typography>
+            </Box>
+             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="success.main">Est. Profit:</Typography>
+                <Typography variant="body2" color="success.main">${(grandTotal - totalCost).toFixed(2)}</Typography>
+            </Box>
+             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="success.main">Margin:</Typography>
+                <Typography variant="body2" color="success.main">
+                    {grandTotal > 0 ? (((grandTotal - totalCost) / grandTotal) * 100).toFixed(1) : 0}%
+                </Typography>
+            </Box>
+        </Box>
+      </Paper>
 
       {/* Actions */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button variant="text" onClick={() => router.back()}>Cancel</Button>
-        <Button variant="contained" color="primary" size="large">Save Quote</Button>
+        <Button variant="contained" color="primary" size="large" onClick={handleSave}>Save Quote</Button>
       </Box>
     </Box>
   );
