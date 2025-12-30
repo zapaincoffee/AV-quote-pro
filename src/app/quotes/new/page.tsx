@@ -59,7 +59,6 @@ export default function NewQuotePage() {
           const newItems = section.items.map(item => {
             if (item.id === itemId) {
               const updatedItem = { ...item, [field]: value };
-              // Recalculate total for the row
               if (['quantity', 'days', 'pricePerDay'].includes(field)) {
                   const qty = field === 'quantity' ? Number(value) : item.quantity;
                   const days = field === 'days' ? Number(value) : item.days;
@@ -114,28 +113,30 @@ export default function NewQuotePage() {
   };
   
   return (
-    <Box sx={{ my: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <IconButton onClick={() => router.back()} sx={{ mr: 1 }}><ArrowBackIcon /></IconButton>
         <Typography variant="h4" component="h1">Create New Quote</Typography>
       </Box>
 
       {/* Event Details */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+      <Paper sx={{ p: {xs: 2, md: 3}, mb: 4 }}>
         <Typography variant="h6" gutterBottom>Event Details</Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
-          <TextField label="Event Name" variant="outlined" />
-          <TextField label="Client Name" variant="outlined" />
-          <TextField label="Prep Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
-          <TextField label="Start Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
-          <TextField label="End Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
+          <TextField label="Event Name" variant="filled" />
+          <TextField label="Client Name" variant="filled" />
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2}}>
+            <TextField label="Prep Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
+            <TextField label="Start Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
+            <TextField label="End Date" type="date" variant="filled" InputLabelProps={{ shrink: true }} />
+          </Box>
         </Box>
       </Paper>
 
       {/* Sections */}
       {sections.map((section) => (
-        <Paper key={section.id} elevation={2} sx={{ mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Paper key={section.id} sx={{ mb: 4, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
               <Typography variant="h6" sx={{ flexGrow: 1 }}>{section.name}</Typography>
               <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
           </Box>
@@ -143,25 +144,25 @@ export default function NewQuotePage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Item Name</TableCell>
-                  <TableCell align="right">Qty</TableCell>
-                  <TableCell align="right">Days</TableCell>
-                  <TableCell align="right">Price/Day</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell>Note</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Qty</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Days</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Price/Day</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Total</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Note</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {section.items.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell><TextField variant="standard" fullWidth value={item.name} onChange={e => handleItemChange(section.id, item.id, 'name', e.target.value)} /></TableCell>
-                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.quantity} onChange={e => handleItemChange(section.id, item.id, 'quantity', e.target.value)} /></TableCell>
-                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.days} onChange={e => handleItemChange(section.id, item.id, 'days', e.target.value)} /></TableCell>
-                    <TableCell><TextField variant="standard" fullWidth type="number" value={item.pricePerDay} onChange={e => handleItemChange(section.id, item.id, 'pricePerDay', e.target.value)} /></TableCell>
+                {section.items.map((item) => (
+                  <TableRow key={item.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableCell sx={{ p: 0.5 }}><TextField variant="standard" fullWidth value={item.name} onChange={e => handleItemChange(section.id, item.id, 'name', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.quantity} onChange={e => handleItemChange(section.id, item.id, 'quantity', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.days} onChange={e => handleItemChange(section.id, item.id, 'days', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5, minWidth: '90px' }}><TextField variant="standard" fullWidth type="number" value={item.pricePerDay} onChange={e => handleItemChange(section.id, item.id, 'pricePerDay', e.target.value)} /></TableCell>
                     <TableCell align="right">${item.total.toFixed(2)}</TableCell>
-                    <TableCell><TextField variant="standard" fullWidth value={item.note} onChange={e => handleItemChange(section.id, item.id, 'note', e.target.value)} /></TableCell>
-                    <TableCell><IconButton size="small" onClick={() => removeItem(section.id, item.id)}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
+                    <TableCell sx={{ p: 0.5 }}><TextField variant="standard" fullWidth value={item.note} onChange={e => handleItemChange(section.id, item.id, 'note', e.target.value)} /></TableCell>
+                    <TableCell sx={{ p: 0.5 }}><IconButton size="small" onClick={() => removeItem(section.id, item.id)}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -176,14 +177,15 @@ export default function NewQuotePage() {
       <Button onClick={addSection} variant="outlined" sx={{ mb: 4 }}>Add Section</Button>
 
       {/* Grand Total */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          <Typography variant="h5">Grand Total: ${grandTotal.toFixed(2)}</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2, gap: 2 }}>
+          <Typography variant="h5" component="span">Grand Total:</Typography>
+          <Typography variant="h4" component="span">${grandTotal.toFixed(2)}</Typography>
       </Box>
 
       {/* Actions */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button variant="outlined" color="secondary" onClick={() => router.back()}>Cancel</Button>
-        <Button variant="contained" color="primary">Save Quote</Button>
+        <Button variant="text" onClick={() => router.back()}>Cancel</Button>
+        <Button variant="contained" color="primary" size="large">Save Quote</Button>
       </Box>
     </Box>
   );
