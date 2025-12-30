@@ -52,12 +52,12 @@ type QuoteSection = {
 const columnHelper = createColumnHelper<QuoteItem>();
 const columns = [
   columnHelper.accessor('itemNumber', { cell: info => info.getValue(), header: () => <span>#</span>, size: 20 }),
-  columnHelper.accessor('name', { cell: EditableCell, header: () => <span>Item Name</span>, size: 300 }),
-  columnHelper.accessor('quantity', { cell: EditableCell, header: () => <span>Qty</span>, size: 50, meta: { type: 'number' } }),
-  columnHelper.accessor('days', { cell: EditableCell, header: () => <span>Days</span>, size: 50, meta: { type: 'number' } }),
-  columnHelper.accessor('pricePerDay', { cell: props => `$${props.getValue()}`, header: () => <span>Price/Day</span>, size: 80, meta: { type: 'number' } }),
+  columnHelper.accessor('name', { cell: (props) => <EditableCell {...props} />, header: () => <span>Item Name</span>, size: 300 }),
+  columnHelper.accessor('quantity', { cell: (props) => <EditableCell {...props} />, header: () => <span>Qty</span>, size: 50, meta: { type: 'number' } }),
+  columnHelper.accessor('days', { cell: (props) => <EditableCell {...props} />, header: () => <span>Days</span>, size: 50, meta: { type: 'number' } }),
+  columnHelper.accessor('pricePerDay', { cell: (props) => <EditableCell {...props} />, header: () => <span>Price/Day</span>, size: 80, meta: { type: 'number' } }),
   columnHelper.accessor('total', { cell: info => `$${info.getValue().toFixed(2)}`, header: () => <span>Total</span>, size: 100 }),
-  columnHelper.accessor('note', { cell: EditableCell, header: () => <span>Note</span> }),
+  columnHelper.accessor('note', { cell: (props) => <EditableCell {...props} />, header: () => <span>Note</span> }),
 ];
 
 
