@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ThemeRegistry from "@/components/ThemeRegistry"; // Import ThemeRegistry
+import ThemeRegistry from "@/components/ThemeRegistry";
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import Container from '@mui/material/Container';
+import Box from '@mui/material/Box'; // Use Box for more control
 import Button from '@mui/material/Button';
 import Link from 'next/link';
 
@@ -21,8 +21,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeRegistry> {/* Wrap the body content with ThemeRegistry */}
-          <AppBar position="static">
+        <ThemeRegistry>
+          <AppBar position="static" color="inherit" elevation={0}>
             <Toolbar>
               <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
                 AV Quote Pro
@@ -41,9 +41,9 @@ export default function RootLayout({
               </Button>
             </Toolbar>
           </AppBar>
-          <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <Box component="main" sx={{ flexGrow: 1, bgcolor: 'background.default', p: { xs: 2, sm: 3, md: 4 } }}>
             {children}
-          </Container>
+          </Box>
         </ThemeRegistry>
       </body>
     </html>
