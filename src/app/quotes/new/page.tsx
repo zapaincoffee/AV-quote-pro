@@ -1,7 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  RowData,
+} from '@tanstack/react-table';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -10,220 +17,184 @@ import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
-import Divider from '@mui/material/Divider';
-import AddEquipmentDialog from '@/components/AddEquipmentDialog'; // Import the dialog
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
+import AddIcon from '@mui/icons-material/Add';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import EditableCell from '@/components/EditableCell'; // Import the new component
 
 // --- Data Structures ---
-interface Equipment {
-  id: string;
-  name: string;
-  dailyPrice: number;
+declare module '@tanstack/react-table' {
+  interface TableMeta<TData extends RowData> {
+    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
+  }
 }
 
-interface QuoteItem {
-  equipmentId: string;
+type QuoteItem = {
+  itemNumber: string;
   name: string;
   quantity: number;
+  days: number;
   pricePerDay: number;
-  calculatedPrice: number;
-}
+  total: number;
+  note?: string;
+};
 
-interface QuoteSection {
+type QuoteSection = {
   id: string;
   name: string;
   items: QuoteItem[];
-}
-
-interface Quote {
-  eventName: string;
-  clientName: string;
-  eventDate: string;
-  rentalDuration: number;
-  sections: QuoteSection[];
-  total: number;
-}
-
-// --- Pricing Logic ---
-const getPriceMultiplier = (days: number): number => {
-  if (days <= 1) return 1;
-  if (days === 2) return 1.5;
-  if (days === 3) return 2;
-  return 2.5;
 };
+
+// --- Column Definitions ---
+const columnHelper = createColumnHelper<QuoteItem>();
+const columns = [
+  columnHelper.accessor('itemNumber', { cell: info => info.getValue(), header: () => <span>#</span>, size: 20 }),
+  columnHelper.accessor('name', { cell: EditableCell, header: () => <span>Item Name</span>, size: 300 }),
+  columnHelper.accessor('quantity', { cell: EditableCell, header: () => <span>Qty</span>, size: 50, meta: { type: 'number' } }),
+  columnHelper.accessor('days', { cell: EditableCell, header: () => <span>Days</span>, size: 50, meta: { type: 'number' } }),
+  columnHelper.accessor('pricePerDay', { cell: props => `$${props.getValue()}`, header: () => <span>Price/Day</span>, size: 80, meta: { type: 'number' } }),
+  columnHelper.accessor('total', { cell: info => `$${info.getValue().toFixed(2)}`, header: () => <span>Total</span>, size: 100 }),
+  columnHelper.accessor('note', { cell: EditableCell, header: () => <span>Note</span> }),
+];
+
+
+// --- Section Table Component ---
+const SectionTable = ({ sectionData, onSectionUpdate }: { sectionData: QuoteSection, onSectionUpdate: (sectionId: string, items: QuoteItem[]) => void }) => {
+  const table = useReactTable({
+    data: sectionData.items,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    meta: {
+      updateData: (rowIndex, columnId, value) => {
+        const newItems = sectionData.items.map((row, index) => {
+          if (index === rowIndex) {
+            const updatedRow = {
+              ...sectionData.items[rowIndex]!,
+              [columnId]: value,
+            };
+            // Recalculate total for the row
+            const qty = Number(updatedRow.quantity) || 0;
+            const days = Number(updatedRow.days) || 0;
+            const price = Number(updatedRow.pricePerDay) || 0;
+            updatedRow.total = qty * days * price; // Simple multiplication for now
+            return updatedRow;
+          }
+          return row;
+        });
+        onSectionUpdate(sectionData.id, newItems);
+      },
+    },
+  });
+
+  return (
+    <Table stickyHeader size="small">
+      <TableHead>
+        {table.getHeaderGroups().map(headerGroup => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map(header => (
+              <TableCell key={header.id} sx={{ width: header.getSize(), fontWeight: 'bold' }}>
+                {flexRender(header.column.columnDef.header, header.getContext())}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableHead>
+      <TableBody>
+        {table.getRowModel().rows.map(row => (
+          <TableRow key={row.id}>
+            {row.getVisibleCells().map(cell => (
+              <TableCell key={cell.id} sx={{ width: cell.column.getSize(), p: 0 }}>
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+};
+
 
 // --- Main Component ---
 export default function NewQuotePage() {
   const router = useRouter();
-  const [quote, setQuote] = useState<Quote>({
-    eventName: '',
-    clientName: '',
-    eventDate: '',
-    rentalDuration: 1,
-    sections: [],
-    total: 0,
-  });
-  const [isDialogOpen, setDialogOpen] = useState(false);
-  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [grandTotal, setGrandTotal] = useState(0);
+  const [sections, setSections] = useState<QuoteSection[]>([
+    { id: '1', name: 'Video', items: [
+      { itemNumber: '1.1', name: 'Projector 5K', quantity: 1, days: 2, pricePerDay: 250, total: 500, note: ''},
+    ]},
+    { id: '2', name: 'Audio', items: [
+      { itemNumber: '2.1', name: 'Shure SM58', quantity: 4, days: 2, pricePerDay: 10, total: 80, note: ''},
+      { itemNumber: '2.2', name: 'Soundcraft Mixer', quantity: 1, days: 2, pricePerDay: 50, total: 100, note: ''},
+    ]}
+  ]);
 
-  // --- Recalculate Total ---
+  // Recalculate grand total whenever sections change
   useEffect(() => {
-    const multiplier = getPriceMultiplier(quote.rentalDuration);
-    const newTotal = quote.sections.reduce((sectionTotal, section) => {
-      return sectionTotal + section.items.reduce((itemTotal, item) => {
-        const calculatedPrice = item.pricePerDay * multiplier * item.quantity;
-        return itemTotal + calculatedPrice;
-      }, 0);
+    const total = sections.reduce((total, section) => {
+      return total + section.items.reduce((sectionTotal, item) => sectionTotal + item.total, 0);
     }, 0);
-    setQuote(prev => ({ ...prev, total: newTotal }));
-  }, [quote.sections, quote.rentalDuration]);
-
-
-  const handleEventDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const val = name === 'rentalDuration' ? parseInt(value, 10) || 1 : value;
-    setQuote(prev => ({ ...prev, [name]: val }));
-  };
+    setGrandTotal(total);
+  }, [sections]);
 
   const addSection = () => {
-    setQuote(prev => ({
-      ...prev,
-      sections: [
-        ...prev.sections,
-        { id: Date.now().toString(), name: 'New Section', items: [] },
-      ],
-    }));
+    const newSectionName = `New Section ${sections.length + 1}`;
+    setSections(prev => [...prev, { id: Date.now().toString(), name: newSectionName, items: [] }]);
   };
 
   const removeSection = (sectionId: string) => {
-    setQuote(prev => ({
-      ...prev,
-      sections: prev.sections.filter(s => s.id !== sectionId),
-    }));
+    setSections(prev => prev.filter(s => s.id !== sectionId));
   };
   
-  const updateSectionName = (sectionId: string, newName: string) => {
-    setQuote(prev => ({
-      ...prev,
-      sections: prev.sections.map(s =>
-        s.id === sectionId ? { ...s, name: newName } : s
-      ),
-    }));
-  };
-
-  const openAddEquipmentDialog = (sectionId: string) => {
-    setActiveSectionId(sectionId);
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = (selectedItems: Equipment[]) => {
-    setDialogOpen(false);
-    if (selectedItems.length > 0 && activeSectionId) {
-      const newItems: QuoteItem[] = selectedItems.map(item => ({
-        equipmentId: item.id,
-        name: item.name,
-        quantity: 1, // Default quantity
-        pricePerDay: item.dailyPrice,
-        calculatedPrice: item.dailyPrice * getPriceMultiplier(quote.rentalDuration),
-      }));
-      
-      setQuote(prev => ({
-        ...prev,
-        sections: prev.sections.map(s =>
-          s.id === activeSectionId ? { ...s, items: [...s.items, ...newItems] } : s
-        ),
-      }));
-    }
-    setActiveSectionId(null);
-  };
-
-  const removeItem = (sectionId: string, equipmentId: string) => {
-    setQuote(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => 
-        s.id === sectionId 
-        ? { ...s, items: s.items.filter(i => i.equipmentId !== equipmentId) }
-        : s
-      ),
-    }));
-  };
-
-  const handleSaveQuote = async () => {
-    try {
-      const response = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(quote),
-      });
-      if (!response.ok) throw new Error('Failed to save quote');
-      alert('Quote saved!');
-      router.push('/quotes');
-    } catch (error) {
-      console.error(error);
-      alert('Error saving quote.');
-    }
+  const updateSectionItems = (sectionId: string, updatedItems: QuoteItem[]) => {
+    setSections(prev => prev.map(s => s.id === sectionId ? { ...s, items: updatedItems } : s));
   };
 
   return (
     <Box sx={{ my: 4 }}>
-      <AddEquipmentDialog open={isDialogOpen} onClose={handleCloseDialog} />
-
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <IconButton onClick={() => router.back()} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Create New Quote
-        </Typography>
+        <IconButton onClick={() => router.back()} sx={{ mr: 1 }}><ArrowBackIcon /></IconButton>
+        <Typography variant="h4" component="h1">Create New Quote</Typography>
       </Box>
 
       {/* Event Details Section */}
       <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
         <Typography variant="h6" gutterBottom>Event Details</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
-          <TextField label="Event Name" name="eventName" value={quote.eventName} onChange={handleEventDetailsChange} required />
-          <TextField label="Client Name" name="clientName" value={quote.clientName} onChange={handleEventDetailsChange} required />
-          <TextField label="Event Date" name="eventDate" type="date" value={quote.eventDate} onChange={handleEventDetailsChange} InputLabelProps={{ shrink: true }} required />
-          <TextField label="Rental Duration (days)" name="rentalDuration" type="number" value={quote.rentalDuration} onChange={handleEventDetailsChange} required inputProps={{ min: 1 }} />
+          <TextField label="Event Name" variant="outlined" required />
+          <TextField label="Client Name" variant="outlined" required />
+          <TextField label="Prep Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} />
+          <TextField label="Start Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} required />
+          <TextField label="End Date" type="date" variant="outlined" InputLabelProps={{ shrink: true }} required />
         </Box>
       </Paper>
 
-      {/* Sections Management */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Sections</Typography>
-          <Button variant="contained" onClick={addSection}>Add Section</Button>
-        </Box>
-        <Divider sx={{ mb: 3 }} />
-        {quote.sections.map((section) => (
-          <Paper key={section.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <TextField value={section.name} onChange={(e) => updateSectionName(section.id, e.target.value)} variant="standard" sx={{ flexGrow: 1, mr: 2 }} />
-              <IconButton onClick={() => removeSection(section.id)} color="error"><DeleteIcon /></IconButton>
+      {/* Sections */}
+      {sections.map((section) => (
+        <Paper key={section.id} elevation={2} sx={{ p: 2, mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" sx={{ flexGrow: 1 }}>{section.name}</Typography>
+                <IconButton size="small" onClick={() => {}}><AddIcon /></IconButton>
+                <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
             </Box>
-            <List dense>
-              {section.items.map(item => (
-                <ListItem key={item.equipmentId} secondaryAction={<IconButton edge="end" onClick={() => removeItem(section.id, item.equipmentId)}><DeleteIcon fontSize="small" /></IconButton>}>
-                  <ListItemText primary={item.name} secondary={`Qty: ${item.quantity} | Price: $${item.calculatedPrice.toFixed(2)}`} />
-                </ListItem>
-              ))}
-            </List>
-            <Button size="small" onClick={() => openAddEquipmentDialog(section.id)}>Add Item</Button>
-          </Paper>
-        ))}
-      </Paper>
-      
-      {/* Total */}
-      <Typography variant="h5" component="p" align="right" sx={{ mb: 2 }}>
-        Total: ${quote.total.toFixed(2)}
-      </Typography>
+            <SectionTable sectionData={section} onSectionUpdate={updateSectionItems} />
+        </Paper>
+      ))}
+
+      <Button onClick={addSection} variant="outlined" sx={{ mb: 4 }}>Add Section</Button>
+
+      {/* Grand Total */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <Typography variant="h5">Grand Total: ${grandTotal.toFixed(2)}</Typography>
+      </Box>
 
       {/* Actions */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
         <Button variant="outlined" color="secondary" onClick={() => router.back()}>Cancel</Button>
-        <Button variant="contained" color="primary" onClick={handleSaveQuote}>Save Quote</Button>
+        <Button variant="contained" color="primary">Save Quote</Button>
       </Box>
     </Box>
   );
