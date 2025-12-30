@@ -13,11 +13,16 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import TableContainer from '@mui/material/TableContainer';
+import Autocomplete from '@mui/material/Autocomplete';
+import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import dayjs from 'dayjs'; // Ensure dayjs is available or use native Date
 
 // --- Data Structures ---
 type EquipmentItem = {

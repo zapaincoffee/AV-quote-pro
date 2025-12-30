@@ -3,13 +3,11 @@
 import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid2';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Link from 'next/link';
 import MailIcon from '@mui/icons-material/Mail';
 import DescriptionIcon from '@mui/icons-material/Description';
-import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -61,77 +59,76 @@ export default function DashboardPage() {
         Dashboard
       </Typography>
       
-      {/* Action Cards */}
-      <Grid container spacing={3} sx={{ mb: 6 }}>
+      {/* Action Cards via CSS Grid */}
+      <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, 
+          gap: 3, 
+          mb: 6 
+      }}>
         {/* Incoming */}
-        <Grid size={{ xs: 12, md: 4 }}>
-            <Paper 
-                sx={{ 
-                    p: 3, 
-                    bgcolor: stats.incomingCount > 0 ? '#ffebee' : 'white', // Red tint if attention needed
-                    border: stats.incomingCount > 0 ? 1 : 0,
-                    borderColor: 'error.main'
-                }}
-            >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <MailIcon color={stats.incomingCount > 0 ? 'error' : 'action'} sx={{ fontSize: 40, mr: 2 }} />
-                    <Box>
-                        <Typography variant="h4">{stats.incomingCount}</Typography>
-                        <Typography variant="body2" color="text.secondary">New Inquiries</Typography>
-                    </Box>
+        <Paper 
+            sx={{ 
+                p: 3, 
+                bgcolor: stats.incomingCount > 0 ? '#ffebee' : 'white', 
+                border: stats.incomingCount > 0 ? 1 : 0,
+                borderColor: 'error.main'
+            }}
+        >
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <MailIcon color={stats.incomingCount > 0 ? 'error' : 'action'} sx={{ fontSize: 40, mr: 2 }} />
+                <Box>
+                    <Typography variant="h4">{stats.incomingCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">New Inquiries</Typography>
                 </Box>
-                <Button 
-                    variant="contained" 
-                    color={stats.incomingCount > 0 ? 'error' : 'primary'} 
-                    fullWidth 
-                    component={Link} 
-                    href="/incoming"
-                >
-                    Process Inbox
-                </Button>
-            </Paper>
-        </Grid>
+            </Box>
+            <Button 
+                variant="contained" 
+                color={stats.incomingCount > 0 ? 'error' : 'primary'} 
+                fullWidth 
+                component={Link} 
+                href="/incoming"
+            >
+                Process Inbox
+            </Button>
+        </Paper>
 
         {/* Drafts */}
-        <Grid size={{ xs: 12, md: 4 }}>
-            <Paper sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <DescriptionIcon color="primary" sx={{ fontSize: 40, mr: 2 }} />
-                    <Box>
-                        <Typography variant="h4">{stats.draftQuotes}</Typography>
-                        <Typography variant="body2" color="text.secondary">Draft Quotes</Typography>
-                    </Box>
+        <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <DescriptionIcon color="primary" sx={{ fontSize: 40, mr: 2 }} />
+                <Box>
+                    <Typography variant="h4">{stats.draftQuotes}</Typography>
+                    <Typography variant="body2" color="text.secondary">Draft Quotes</Typography>
                 </Box>
-                <Button variant="outlined" fullWidth component={Link} href="/quotes">
-                    Manage Quotes
-                </Button>
-            </Paper>
-        </Grid>
+            </Box>
+            <Button variant="outlined" fullWidth component={Link} href="/quotes">
+                Manage Quotes
+            </Button>
+        </Paper>
 
         {/* Quick Action */}
-        <Grid size={{ xs: 12, md: 4 }}>
-            <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                <Button 
-                    variant="contained" 
-                    size="large" 
-                    startIcon={<AddIcon />} 
-                    component={Link} 
-                    href="/quotes/new"
-                    sx={{ mb: 2 }}
-                >
-                    Create New Quote
-                </Button>
-                <Button 
-                    variant="outlined" 
-                    startIcon={<AddIcon />} 
-                    component={Link} 
-                    href="/incoming"
-                >
-                    Record New Lead
-                </Button>
-            </Paper>
-        </Grid>
-      </Grid>
+        <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+            <Button 
+                variant="contained" 
+                size="large" 
+                startIcon={<AddIcon />} 
+                component={Link} 
+                href="/quotes/new"
+                sx={{ mb: 2 }}
+            >
+                Create New Quote
+            </Button>
+            <Button 
+                variant="outlined" 
+                startIcon={<AddIcon />} 
+                component={Link} 
+                href="/incoming"
+            >
+                Record New Lead
+            </Button>
+        </Paper>
+      </Box>
 
       {/* Upcoming Jobs */}
       <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
