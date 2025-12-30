@@ -1,28 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TableMeta } from '@tanstack/react-table';
 import TextField from '@mui/material/TextField';
+import { CellContext } from '@tanstack/react-table';
 
-interface EditableCellProps {
-  getValue: () => any;
-  row: { index: number };
-  column: { id: string };
-  table: {
-    meta?: {
-      updateData: (rowIndex: number, columnId: string, value: any) => void;
-      type?: string;
-    };
-  };
-}
-
-const EditableCell = ({ getValue, row, column, table }: EditableCellProps) => {
+// The props are now the same as the CellContext
+const EditableCell = ({
+  getValue,
+  row: { index },
+  column: { id, columnDef },
+  table: { meta },
+}: CellContext<any, any>) => {
   const initialValue = getValue();
   const [value, setValue] = useState(initialValue);
-  const type = table.meta?.type || 'text';
+  const type = (columnDef.meta as any)?.type || 'text'; // Get type from column meta
 
   const onBlur = () => {
-    table.meta?.updateData(row.index, column.id, value);
+    meta?.updateData(index, id, value);
   };
 
   useEffect(() => {
@@ -41,7 +35,7 @@ const EditableCell = ({ getValue, row, column, table }: EditableCellProps) => {
         '& .MuiInput-underline:before': { borderBottom: 'none' },
         '& .MuiInput-underline:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
         '& .MuiInput-underline:after': { borderBottom: 'none' },
-        padding: '4px 8px', // Add some padding
+        padding: '4px 8px',
       }}
     />
   );
