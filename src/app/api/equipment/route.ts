@@ -1,8 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET /api/equipment - Fetches assets from the shelf.nu 'Asset' table
 export async function GET() {
+  const supabase = getSupabase();
+  
   // We only fetch a subset of fields needed for the quote.
   // We also assume 'valuation' is the daily price.
   const { data, error } = await supabase
@@ -12,7 +14,8 @@ export async function GET() {
 
   if (error) {
     console.error('Error fetching assets from shelf.nu:', error);
-    return NextResponse.json({ message: 'Error fetching assets' }, { status: 500 });
+    // Return empty array instead of erroring, so UI still works (just empty) if config is wrong
+    return NextResponse.json([]); 
   }
 
   // Map the 'Asset' fields to our application's 'Equipment' fields

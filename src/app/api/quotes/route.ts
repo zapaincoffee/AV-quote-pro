@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     const newQuote = {
       id,
       ...quoteData,
+      status: 'Draft',
       createdAt: new Date().toISOString()
     };
 
