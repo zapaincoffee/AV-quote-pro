@@ -4,19 +4,26 @@ import { useState, useEffect } from 'react';
 import TextField from '@mui/material/TextField';
 import { CellContext } from '@tanstack/react-table';
 
-// The props are now the same as the CellContext
+// Define the shape of our custom meta object
+interface CustomTableMeta {
+  updateData: (rowIndex: number, columnId: string, value: any) => void;
+}
+
 const EditableCell = ({
   getValue,
   row: { index },
   column: { id, columnDef },
-  table: { meta },
+  table,
 }: CellContext<any, any>) => {
   const initialValue = getValue();
   const [value, setValue] = useState(initialValue);
-  const type = (columnDef.meta as any)?.type || 'text'; // Get type from column meta
+  
+  // Explicitly cast the table's meta object
+  const customMeta = table.meta as CustomTableMeta;
+  const type = (columnDef.meta as any)?.type || 'text';
 
   const onBlur = () => {
-    meta?.updateData(index, id, value);
+    customMeta?.updateData(index, id, value);
   };
 
   useEffect(() => {
