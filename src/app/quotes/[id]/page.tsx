@@ -211,7 +211,19 @@ export default function QuoteDetailPage() {
                 </Box>
             )}
         </Box>
+import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
+
+// ... inside the component ...
+
         <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+                variant="outlined" 
+                startIcon={<TheaterComedyIcon />} 
+                component={Link} 
+                href={`/quotes/${id}/production`}
+            >
+                Production Hub
+            </Button>
             <Button variant="outlined" startIcon={<EventIcon />} onClick={addToGoogleCalendar}>
                 Add to Calendar
             </Button>

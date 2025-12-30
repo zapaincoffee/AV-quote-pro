@@ -17,6 +17,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+
 interface CrewMember {
   id: string;
   name: string;
@@ -24,11 +26,12 @@ interface CrewMember {
   phone: string;
   email: string;
   hourlyRate: number;
+  dietaryRestrictions?: string;
 }
 
 export default function CrewPage() {
   const [crew, setCrew] = useState<CrewMember[]>([]);
-  const [newMember, setNewMember] = useState({ name: '', role: '', phone: '', email: '', hourlyRate: 0 });
+  const [newMember, setNewMember] = useState({ name: '', role: '', phone: '', email: '', hourlyRate: 0, dietaryRestrictions: '' });
 
   useEffect(() => {
     fetch('/api/crew').then(res => res.json()).then(setCrew);
@@ -43,7 +46,7 @@ export default function CrewPage() {
     });
     const item = await res.json();
     setCrew([...crew, item]);
-    setNewMember({ name: '', role: '', phone: '', email: '', hourlyRate: 0 });
+    setNewMember({ name: '', role: '', phone: '', email: '', hourlyRate: 0, dietaryRestrictions: '' });
   };
 
   return (
@@ -56,6 +59,7 @@ export default function CrewPage() {
         <TextField label="Phone" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} size="small" />
         <TextField label="Email" value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} size="small" />
         <TextField label="Rate/Hr" type="number" value={newMember.hourlyRate} onChange={e => setNewMember({...newMember, hourlyRate: Number(e.target.value)})} size="small" sx={{ width: 100 }} />
+        <TextField label="Dietary (Veg...)" value={newMember.dietaryRestrictions} onChange={e => setNewMember({...newMember, dietaryRestrictions: e.target.value})} size="small" />
         <Button variant="contained" onClick={handleAdd}>Add Crew</Button>
       </Paper>
 
@@ -66,6 +70,7 @@ export default function CrewPage() {
                     <TableCell>Name</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Contact</TableCell>
+                    <TableCell>Diet</TableCell>
                     <TableCell align="right">Rate</TableCell>
                     <TableCell></TableCell>
                 </TableRow>
@@ -80,6 +85,14 @@ export default function CrewPage() {
                                 {member.phone && <IconButton size="small" href={`tel:${member.phone}`}><PhoneIcon fontSize="inherit" /></IconButton>}
                                 {member.email && <IconButton size="small" href={`mailto:${member.email}`}><EmailIcon fontSize="inherit" /></IconButton>}
                             </Box>
+                        </TableCell>
+                        <TableCell>
+                            {member.dietaryRestrictions && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                                    <RestaurantIcon fontSize="small" />
+                                    <Typography variant="caption">{member.dietaryRestrictions}</Typography>
+                                </Box>
+                            )}
                         </TableCell>
                         <TableCell align="right">{member.hourlyRate}</TableCell>
                         <TableCell><IconButton disabled><DeleteIcon /></IconButton></TableCell>
