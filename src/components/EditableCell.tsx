@@ -4,11 +4,6 @@ import { useState, useEffect } from 'react';
 import TextField from '@mui/material/TextField';
 import { CellContext } from '@tanstack/react-table';
 
-// Define the shape of our custom meta object
-interface CustomTableMeta {
-  updateData: (rowIndex: number, columnId: string, value: any) => void;
-}
-
 const EditableCell = ({
   getValue,
   row: { index },
@@ -18,12 +13,14 @@ const EditableCell = ({
   const initialValue = getValue();
   const [value, setValue] = useState(initialValue);
   
-  // Explicitly cast the table's meta object
-  const customMeta = table.meta as CustomTableMeta;
+  // Bypass the type error by accessing meta directly and checking for existence.
+  const updateData = (table.meta as any)?.updateData;
   const type = (columnDef.meta as any)?.type || 'text';
 
   const onBlur = () => {
-    customMeta?.updateData(index, id, value);
+    if (updateData) {
+      updateData(index, id, value);
+    }
   };
 
   useEffect(() => {
