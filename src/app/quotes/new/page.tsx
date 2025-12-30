@@ -26,14 +26,6 @@ import TableRow from '@mui/material/TableRow';
 import EditableCell from '@/components/EditableCell'; // Import the new component
 
 // --- Data Structures ---
-declare module '@tanstack/react-table' {
-  interface TableMeta<TData extends RowData> {
-    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
-  }
-  interface ColumnMeta<TData extends RowData, TValue> {
-    type?: string;
-  }
-}
 
 type QuoteItem = {
   itemNumber: string;
