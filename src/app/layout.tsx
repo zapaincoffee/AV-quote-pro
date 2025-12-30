@@ -30,11 +30,14 @@ export default function RootLayout({
               <Button color="inherit" component={Link} href="/">
                 Dashboard
               </Button>
-              <Button color="inherit" component={Link} href="/equipment">
-                Equipment
+              <Button color="inherit" component={Link} href="/incoming">
+                Inbox
               </Button>
               <Button color="inherit" component={Link} href="/quotes">
                 Quotes
+              </Button>
+              <Button color="inherit" component={Link} href="/pricelist">
+                Price List
               </Button>
               <Button color="inherit" component={Link} href="/settings">
                 Settings

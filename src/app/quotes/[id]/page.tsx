@@ -52,6 +52,7 @@ interface Quote {
   totalCost?: number;
   discount?: number;
   status?: string;
+  currency?: string;
   sections: QuoteSection[];
   staff?: StaffMember[];
 }
@@ -188,6 +189,7 @@ export default function QuoteDetailPage() {
     );
   }
 
+  const currencySymbol = quote.currency === 'CZK' ? 'Kč' : quote.currency === 'EUR' ? '€' : '$';
   const subtotal = (quote.total || 0) + (quote.discount || 0);
 
   return (
@@ -221,6 +223,184 @@ export default function QuoteDetailPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom color="primary">Event Information</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 1 }}>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">Event Name</Typography>
+            <Typography variant="body1">{quote.eventName}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">Client Name</Typography>
+            <Typography variant="body1">{quote.clientName}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">Prep Date</Typography>
+            <Typography variant="body1">{quote.prepDate || 'N/A'}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary">Event Dates</Typography>
+            <Typography variant="body1">
+              {quote.startDate} to {quote.endDate}
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Staff & Labor Section */}
+      <Paper sx={{ mb: 4, p: 2 }}>
+          <Typography variant="h6" gutterBottom>Staff & Labor Tracking</Typography>
+          <TableContainer>
+            <Table size="small">
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Role</TableCell>
+                        <TableCell align="right">Est. Hours</TableCell>
+                        <TableCell align="right">Actual Hours</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {(quote.staff || []).map((staff) => (
+                        <TableRow key={staff.id}>
+                            <TableCell>{staff.name}</TableCell>
+                            <TableCell>{staff.role}</TableCell>
+                            <TableCell align="right">{staff.estimatedHours}</TableCell>
+                            <TableCell align="right" sx={{ width: '150px' }}>
+                                <TextField 
+                                    type="number" 
+                                    size="small" 
+                                    value={staff.actualHours || ''} 
+                                    onChange={(e) => handleUpdateActualHours(staff.id, e.target.value)}
+                                    placeholder="0"
+                                />
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    {(!quote.staff || quote.staff.length === 0) && (
+                        <TableRow>
+                             <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary' }}>No staff assigned yet.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+          </TableContainer>
+          
+          <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField label="Name" size="small" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} />
+            <TextField label="Role" size="small" value={newStaffRole} onChange={e => setNewStaffRole(e.target.value)} />
+            <TextField label="Est. Hours" size="small" type="number" sx={{ width: '100px' }} value={newStaffHours} onChange={e => setNewStaffHours(e.target.value)} />
+            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={handleAddStaff}>Add Crew</Button>
+          </Box>
+      </Paper>
+
+      {quote.sections.map((section) => (
+        <Paper key={section.id} sx={{ mb: 4, overflow: 'hidden' }}>
+          <Box sx={{ p: 2, bgcolor: 'grey.100', borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="h6">{section.name}</Typography>
+          </Box>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Qty</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Days</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Price/Day</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Total</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Note</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {section.items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell align="right">{item.quantity}</TableCell>
+                    <TableCell align="right">{item.days}</TableCell>
+                    <TableCell align="right">{currencySymbol}{item.pricePerDay.toFixed(2)}</TableCell>
+                    <TableCell align="right">{currencySymbol}{item.total.toFixed(2)}</TableCell>
+                    <TableCell>{item.note}</TableCell>
+                  </TableRow>
+                ))}
+                {section.items.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 2 }}>No items in this section</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', bgcolor: 'grey.50' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              Section Subtotal: {currencySymbol}{section.items.reduce((sum, item) => sum + item.total, 0).toFixed(2)}
+            </Typography>
+          </Box>
+        </Paper>
+      ))}
+
+      {/* Financial Summary */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 4 }}>
+        <Paper sx={{ p: 3, minWidth: '300px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography>Subtotal:</Typography>
+                <Typography>{currencySymbol}{subtotal.toFixed(2)}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                <Typography>Discount:</Typography>
+                <Typography>-{currencySymbol}{(quote.discount || 0).toFixed(2)}</Typography>
+            </Box>
+             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6">Grand Total:</Typography>
+                <Typography variant="h6" color="primary">{currencySymbol}{quote.total.toFixed(2)}</Typography>
+            </Box>
+
+            {/* Internal Metrics */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed grey' }}>
+                <Typography variant="caption" color="text.secondary" display="block" gutterBottom>INTERNAL FINANCIALS</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="error">Total Cost:</Typography>
+                    <Typography variant="body2" color="error">{currencySymbol}{(quote.totalCost || 0).toFixed(2)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="success.main">Profit:</Typography>
+                    <Typography variant="body2" color="success.main">{currencySymbol}{(quote.total - (quote.totalCost || 0)).toFixed(2)}</Typography>
+                </Box>
+                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="success.main">Margin:</Typography>
+                    <Typography variant="body2" color="success.main">
+                        {quote.total > 0 ? (((quote.total - (quote.totalCost || 0)) / quote.total) * 100).toFixed(1) : 0}%
+                    </Typography>
+                </Box>
+            </Box>
+        </Paper>
+      </Box>
+
+      {/* Terms & Conditions Display */}
+      <Paper sx={{ p: 3, mb: 4, bgcolor: 'grey.50' }}>
+          <Typography variant="h6" gutterBottom>Terms & Conditions</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { md: '1fr 1fr' }, gap: 4 }}>
+              <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Terms of Service</Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{settings.termsOfService || 'Not set'}</Typography>
+              </Box>
+               <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Payment Terms</Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{settings.paymentTerms || 'Not set'}</Typography>
+              </Box>
+          </Box>
+      </Paper>
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 4 }}>
+        <Button variant="outlined" color="error" onClick={async () => {
+          if (confirm('Are you sure you want to delete this quote?')) {
+            await fetch(`/api/quotes/${id}`, { method: 'DELETE' });
+            router.push('/quotes');
+          }
+        }}>Delete Quote</Button>
+        <Button variant="contained" color="primary">Print / Export PDF</Button>
+      </Box>
+    </Box>
+  );
+}
         <Typography variant="h6" gutterBottom color="primary">Event Information</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, mt: 1 }}>
           <Box>

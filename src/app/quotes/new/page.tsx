@@ -17,6 +17,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import dayjs from 'dayjs'; // Ensure dayjs is available or use native Date
 
 // --- Data Structures ---
 type EquipmentItem = {
@@ -45,6 +46,8 @@ type QuoteItem = {
 type QuoteSection = {
   id: string;
   name: string;
+  startDate?: string;
+  endDate?: string;
   items: QuoteItem[];
 };
 
@@ -54,6 +57,7 @@ export default function NewQuotePage() {
   const [grandTotal, setGrandTotal] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [discount, setDiscount] = useState<number>(0);
+  const [currency, setCurrency] = useState('CZK'); // Default CZK
   const [availableEquipment, setAvailableEquipment] = useState<EquipmentItem[]>([]);
   const [eventDetails, setEventDetails] = useState({
     eventName: '',
@@ -83,6 +87,18 @@ export default function NewQuotePage() {
     fetchEquipment();
   }, []);
 
+  // Helper to calculate duration in days
+  const calculateDuration = (startStr?: string, endStr?: string) => {
+    if (!startStr || !endStr) return 1;
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1;
+    
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays + 1;
+  };
+
   // Recalculate totals whenever sections or discount change
   useEffect(() => {
     const rawTotal = sections.reduce((total, section) => {
@@ -99,6 +115,33 @@ export default function NewQuotePage() {
 
   const handleEventDetailsChange = (field: string, value: string) => {
     setEventDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSectionChange = (id: string, field: keyof QuoteSection, value: string) => {
+    setSections(prev => prev.map(section => {
+        if (section.id === id) {
+            const updatedSection = { ...section, [field]: value };
+            
+            // If dates change, update days for all items in this section
+            if (field === 'startDate' || field === 'endDate') {
+                const start = field === 'startDate' ? value : section.startDate;
+                const end = field === 'endDate' ? value : section.endDate;
+                
+                // Only update if both dates are present (or fallback to event dates if cleared, but keeping simple for now)
+                if (start && end) {
+                    const newDays = calculateDuration(start, end);
+                    updatedSection.items = section.items.map(item => ({
+                        ...item,
+                        days: newDays,
+                        total: item.quantity * newDays * item.pricePerDay,
+                        totalCost: item.quantity * newDays * item.costPerDay
+                    }));
+                }
+            }
+            return updatedSection;
+        }
+        return section;
+    }));
   };
 
   const handleItemChange = (sectionId: string, itemId: string, field: keyof QuoteItem, value: any) => {
@@ -130,6 +173,16 @@ export default function NewQuotePage() {
   };
 
   const addItem = (sectionId: string, equipment?: EquipmentItem) => {
+    // Determine default days: Section specific OR Event global
+    const section = sections.find(s => s.id === sectionId);
+    let defaultDays = 1;
+    
+    if (section && section.startDate && section.endDate) {
+        defaultDays = calculateDuration(section.startDate, section.endDate);
+    } else {
+        defaultDays = calculateDuration(eventDetails.startDate, eventDetails.endDate);
+    }
+    
     setSections(prev => prev.map(s => {
       if (s.id === sectionId) {
         const newItem: QuoteItem = {
@@ -137,10 +190,10 @@ export default function NewQuotePage() {
           name: equipment?.name || '',
           type: 'Equipment',
           quantity: 1,
-          days: 1,
+          days: defaultDays, 
           pricePerDay: equipment?.dailyPrice || 0,
-          costPerDay: 0, // Default cost to 0, user enters it
-          total: equipment?.dailyPrice || 0,
+          costPerDay: 0, 
+          total: (equipment?.dailyPrice || 0) * defaultDays,
           totalCost: 0,
           note: '',
           equipmentId: equipment?.id
@@ -170,13 +223,20 @@ export default function NewQuotePage() {
   };
 
   const handleSave = async () => {
+    // Validation
+    if (!eventDetails.eventName || !eventDetails.clientName) {
+        alert('Please fill in Event Name and Client Name.');
+        return;
+    }
+
     try {
       const quoteData = {
         ...eventDetails,
         sections,
         discount,
+        currency,
         total: grandTotal,
-        totalCost, // Save internal cost for reporting
+        totalCost, 
         eventDate: eventDetails.startDate
       };
 
@@ -199,11 +259,26 @@ export default function NewQuotePage() {
     }
   };
   
+  const currencySymbol = currency === 'CZK' ? 'Kč' : currency === 'EUR' ? '€' : '$';
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => router.back()} sx={{ mr: 1 }}><ArrowBackIcon /></IconButton>
-        <Typography variant="h4" component="h1">Create New Quote</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton onClick={() => router.back()} sx={{ mr: 1 }}><ArrowBackIcon /></IconButton>
+            <Typography variant="h4" component="h1">Create New Quote</Typography>
+        </Box>
+        <FormControl variant="filled" sx={{ minWidth: 120 }}>
+            <InputLabel>Currency</InputLabel>
+            <Select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+            >
+                <MenuItem value="CZK">CZK (Kč)</MenuItem>
+                <MenuItem value="EUR">EUR (€)</MenuItem>
+                <MenuItem value="USD">USD ($)</MenuItem>
+            </Select>
+        </FormControl>
       </Box>
 
       {/* Event Details */}
@@ -215,12 +290,16 @@ export default function NewQuotePage() {
             variant="filled" 
             value={eventDetails.eventName}
             onChange={(e) => handleEventDetailsChange('eventName', e.target.value)}
+            required
+            error={!eventDetails.eventName}
           />
           <TextField 
             label="Client Name" 
             variant="filled" 
             value={eventDetails.clientName}
             onChange={(e) => handleEventDetailsChange('clientName', e.target.value)}
+            required
+            error={!eventDetails.clientName}
           />
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2}}>
             <TextField 
@@ -254,9 +333,33 @@ export default function NewQuotePage() {
       {/* Sections */}
       {sections.map((section) => (
         <Paper key={section.id} sx={{ mb: 4, overflow: 'hidden' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6" sx={{ flexGrow: 1 }}>{section.name}</Typography>
-              <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', gap: 2, flexWrap: 'wrap' }}>
+              <TextField 
+                  variant="standard" 
+                  value={section.name} 
+                  onChange={(e) => handleSectionChange(section.id, 'name', e.target.value)}
+                  placeholder="Section Name"
+                  sx={{ flexGrow: 1, input: { fontSize: '1.25rem', fontWeight: 'medium' } }}
+              />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <TextField 
+                      type="date" 
+                      size="small"
+                      label="From" 
+                      InputLabelProps={{ shrink: true }} 
+                      value={section.startDate || ''}
+                      onChange={(e) => handleSectionChange(section.id, 'startDate', e.target.value)}
+                  />
+                  <TextField 
+                      type="date" 
+                      size="small"
+                      label="To" 
+                      InputLabelProps={{ shrink: true }} 
+                      value={section.endDate || ''}
+                      onChange={(e) => handleSectionChange(section.id, 'endDate', e.target.value)}
+                  />
+                  <IconButton size="small" color="error" onClick={() => removeSection(section.id)}><DeleteIcon /></IconButton>
+              </Box>
           </Box>
           <TableContainer>
             <Table size="small">
@@ -321,7 +424,7 @@ export default function NewQuotePage() {
                         />
                     </TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '90px' }}><TextField variant="standard" fullWidth type="number" value={item.pricePerDay} onChange={e => handleItemChange(section.id, item.id, 'pricePerDay', e.target.value)} /></TableCell>
-                    <TableCell align="right">${item.total.toFixed(2)}</TableCell>
+                    <TableCell align="right">{currencySymbol}{item.total.toFixed(2)}</TableCell>
                     <TableCell sx={{ p: 0.5 }}><IconButton size="small" onClick={() => removeItem(section.id, item.id)}><DeleteIcon fontSize="inherit" /></IconButton></TableCell>
                   </TableRow>
                 ))}
@@ -340,7 +443,7 @@ export default function NewQuotePage() {
       <Paper sx={{ p: 3, mb: 4, maxWidth: '400px', ml: 'auto' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
             <Typography>Subtotal:</Typography>
-            <Typography>${(grandTotal + discount).toFixed(2)}</Typography>
+            <Typography>{currencySymbol}{(grandTotal + discount).toFixed(2)}</Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography>Discount:</Typography>
@@ -350,7 +453,7 @@ export default function NewQuotePage() {
                 size="small" 
                 sx={{ width: '100px', input: { textAlign: 'right' } }}
                 InputProps={{
-                    startAdornment: <InputAdornment position="start">-$</InputAdornment>,
+                    startAdornment: <InputAdornment position="start">-{currencySymbol}</InputAdornment>,
                 }}
                 value={discount}
                 onChange={(e) => setDiscount(Number(e.target.value))}
@@ -358,7 +461,7 @@ export default function NewQuotePage() {
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="h6">Grand Total:</Typography>
-            <Typography variant="h6">${grandTotal.toFixed(2)}</Typography>
+            <Typography variant="h6">{currencySymbol}{grandTotal.toFixed(2)}</Typography>
         </Box>
         
         {/* Internal Metrics - Only for Admin */}
@@ -366,11 +469,11 @@ export default function NewQuotePage() {
             <Typography variant="caption" color="text.secondary" display="block">INTERNAL USE ONLY</Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="error">Total Cost:</Typography>
-                <Typography variant="body2" color="error">${totalCost.toFixed(2)}</Typography>
+                <Typography variant="body2" color="error">{currencySymbol}{totalCost.toFixed(2)}</Typography>
             </Box>
              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="success.main">Est. Profit:</Typography>
-                <Typography variant="body2" color="success.main">${(grandTotal - totalCost).toFixed(2)}</Typography>
+                <Typography variant="body2" color="success.main">{currencySymbol}{(grandTotal - totalCost).toFixed(2)}</Typography>
             </Box>
              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="success.main">Margin:</Typography>
