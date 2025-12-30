@@ -372,6 +372,7 @@ export default function NewQuotePage() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Item Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Ext.</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Qty</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }} align="right">Days</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', color: 'error.main' }} align="right">Cost/Day</TableCell>
@@ -397,24 +398,53 @@ export default function NewQuotePage() {
                         </Select>
                     </TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '200px' }}>
-                      <Autocomplete
-                        freeSolo
-                        options={availableEquipment}
-                        getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
-                        value={item.name}
-                        onChange={(event, newValue) => {
-                          if (typeof newValue === 'string') {
-                            handleItemChange(section.id, item.id, 'name', newValue);
-                          } else if (newValue && newValue.name) {
-                            handleItemChange(section.id, item.id, 'name', newValue.name);
-                            handleItemChange(section.id, item.id, 'pricePerDay', newValue.dailyPrice);
-                            handleItemChange(section.id, item.id, 'equipmentId', newValue.id);
-                          }
-                        }}
-                        renderInput={(params) => (
-                          <TextField {...params} variant="standard" fullWidth placeholder="Item Name" />
-                        )}
-                      />
+                      {item.isExternal ? (
+                          <Box>
+                            <TextField 
+                                variant="standard" 
+                                fullWidth 
+                                placeholder="Item Name"
+                                value={item.name} 
+                                onChange={e => handleItemChange(section.id, item.id, 'name', e.target.value)}
+                            />
+                            <TextField 
+                                variant="standard" 
+                                fullWidth 
+                                placeholder="Supplier Name"
+                                value={item.supplier || ''} 
+                                onChange={e => handleItemChange(section.id, item.id, 'supplier', e.target.value)}
+                                InputProps={{ sx: { fontSize: '0.8em', color: 'text.secondary' } }}
+                            />
+                          </Box>
+                      ) : (
+                        <Autocomplete
+                            freeSolo
+                            options={availableEquipment}
+                            getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                            value={item.name}
+                            onChange={(event, newValue) => {
+                            if (typeof newValue === 'string') {
+                                handleItemChange(section.id, item.id, 'name', newValue);
+                            } else if (newValue && newValue.name) {
+                                handleItemChange(section.id, item.id, 'name', newValue.name);
+                                handleItemChange(section.id, item.id, 'pricePerDay', newValue.dailyPrice);
+                                handleItemChange(section.id, item.id, 'equipmentId', newValue.id);
+                            }
+                            }}
+                            renderInput={(params) => (
+                            <TextField {...params} variant="standard" fullWidth placeholder="Item Name" />
+                            )}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell padding="checkbox">
+                        <Tooltip title="External / Sub-rental">
+                            <Checkbox 
+                                checked={item.isExternal || false} 
+                                onChange={e => handleItemChange(section.id, item.id, 'isExternal', e.target.checked)}
+                                size="small"
+                            />
+                        </Tooltip>
                     </TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.quantity} onChange={e => handleItemChange(section.id, item.id, 'quantity', e.target.value)} /></TableCell>
                     <TableCell sx={{ p: 0.5, minWidth: '60px' }}><TextField variant="standard" fullWidth type="number" value={item.days} onChange={e => handleItemChange(section.id, item.id, 'days', e.target.value)} /></TableCell>

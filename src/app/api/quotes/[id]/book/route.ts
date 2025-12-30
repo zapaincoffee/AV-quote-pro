@@ -66,6 +66,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     quotes[quoteIndex] = quote;
     await setQuotesData(quotes);
 
+    // --- Mattermost Notification ---
+    try {
+        const settingsPath = path.join(process.cwd(), 'src/data/settings.json');
+        const settingsData = await fs.readFile(settingsPath, 'utf-8');
+        const settings = JSON.parse(settingsData);
+
+        if (settings.mattermostWebhookUrl) {
+            const message = {
+                text: `### :rocket: New Job Approved: ${quote.eventName}\n**Client:** ${quote.clientName}\n**Date:** ${quote.startDate} - ${quote.endDate}\n**Total:** $${quote.total}`,
+                username: "AV Quote Pro",
+                icon_url: "https://av-quote-pro.vercel.app/icon.png"
+            };
+            
+            await fetch(settings.mattermostWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(message)
+            });
+        }
+    } catch (e) {
+        console.error('Failed to send Mattermost notification', e);
+        // Don't fail the request just because notification failed
+    }
+
     if (errors.length > 0) {
       return NextResponse.json({ 
         message: 'Quote approved but some items failed to book', 

@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
   const [termsOfService, setTermsOfService] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
+  const [mattermostWebhookUrl, setMattermostWebhookUrl] = useState('');
 
   useEffect(() => {
     async function fetchSettings() {
@@ -22,6 +23,7 @@ export default function SettingsPage() {
           const data = await response.json();
           setTermsOfService(data.termsOfService || '');
           setPaymentTerms(data.paymentTerms || '');
+          setMattermostWebhookUrl(data.mattermostWebhookUrl || '');
         }
       } catch (error) {
         console.error('Failed to load settings', error);
@@ -35,7 +37,7 @@ export default function SettingsPage() {
         await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ termsOfService, paymentTerms })
+            body: JSON.stringify({ termsOfService, paymentTerms, mattermostWebhookUrl })
         });
         
         // For Supabase, we keep the alert for now as it's separate logic
@@ -80,6 +82,21 @@ export default function SettingsPage() {
             multiline
             rows={3}
             placeholder="e.g. 50% deposit, Net 30..."
+        />
+
+        <Divider sx={{ my: 4 }} />
+
+        <Typography variant="h6" gutterBottom>
+            Integrations
+        </Typography>
+        <TextField
+            fullWidth
+            label="Mattermost Webhook URL"
+            value={mattermostWebhookUrl}
+            onChange={(e) => setMattermostWebhookUrl(e.target.value)}
+            margin="normal"
+            placeholder="https://your-mattermost.com/hooks/..."
+            helperText="Post a notification when a job is approved."
         />
 
         <Divider sx={{ my: 4 }} />
