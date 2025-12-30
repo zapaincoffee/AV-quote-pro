@@ -33,7 +33,7 @@ export default function AddEquipmentDialog({ open, onClose }: AddEquipmentDialog
 
   useEffect(() => {
     if (open) {
-      async function fetchEquipment() {
+      const fetchEquipment = async () => {
         setLoading(true);
         try {
           const response = await fetch('/api/equipment');
