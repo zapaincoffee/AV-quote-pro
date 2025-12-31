@@ -14,6 +14,7 @@ import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useRouter } from 'next/navigation';
 
 interface Lead {
@@ -58,6 +59,33 @@ export default function IncomingPage() {
     });
     fetchLeads();
     router.push('/quotes/new');
+  };
+
+  const handleAIConvert = async (lead: Lead) => {
+    // 1. Call AI
+    const res = await fetch('/api/copilot/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: lead.content })
+    });
+    
+    if (res.ok) {
+        const aiData = await res.json();
+        // 2. Save to local storage for the New Quote page to pick up
+        localStorage.setItem('aiDraftQuote', JSON.stringify(aiData));
+        
+        // 3. Mark processed
+        await fetch('/api/leads', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: lead.id, status: 'Processed' })
+        });
+        
+        // 4. Redirect
+        router.push('/quotes/new?source=ai');
+    } else {
+        alert('AI Analysis failed. Try manual conversion.');
+    }
   };
 
   return (
@@ -114,38 +142,6 @@ export default function IncomingPage() {
           <Paper key={lead.id} sx={{ mb: 2, opacity: lead.status === 'Processed' ? 0.6 : 1 }}>
             <ListItem
                 secondaryAction={
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-
-// ... inside the component ...
-
-  const handleAIConvert = async (lead: Lead) => {
-    // 1. Call AI
-    const res = await fetch('/api/copilot/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: lead.content })
-    });
-    
-    if (res.ok) {
-        const aiData = await res.json();
-        // 2. Save to local storage for the New Quote page to pick up
-        localStorage.setItem('aiDraftQuote', JSON.stringify(aiData));
-        
-        // 3. Mark processed
-        await fetch('/api/leads', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: lead.id, status: 'Processed' })
-        });
-        
-        // 4. Redirect
-        router.push('/quotes/new?source=ai');
-    } else {
-        alert('AI Analysis failed. Try manual conversion.');
-    }
-  };
-
-  // ... in the list item actions ...
                     lead.status === 'New' && (
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             <Button 

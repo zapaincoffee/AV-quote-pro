@@ -1,7 +1,66 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
+import Divider from '@mui/material/Divider';
+import CircularProgress from '@mui/material/CircularProgress';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import CallIcon from '@mui/icons-material/Call';
+import EmailIcon from '@mui/icons-material/Email';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import Autocomplete from '@mui/material/Autocomplete';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
+
+interface ScheduleItem {
+  id: string;
+  time: string;
+  activity: string;
+  notes: string;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+}
+
+interface Venue {
+  name: string;
+  address: string;
+  contactName: string;
+  contactPhone: string;
+  wifiSsid: string;
+  wifiPass: string;
+  parkingInfo: string;
+  loadInInfo: string;
+}
+
+interface Contact {
+  id: string;
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+}
 
 interface Vehicle {
   id: string;
@@ -23,20 +82,65 @@ interface Quote {
   vehicles?: Vehicle[];
 }
 
-// ... existing code ...
+function TabPanel(props: { children?: React.ReactNode; index: number; value: number }) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 export default function ProductionPage() {
-  // ... existing hooks ...
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [weather, setWeather] = useState<string>(''); // Simple text forecast for now
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id;
+  
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tabValue, setTabValue] = useState(0);
+  const [saving, setSaving] = useState(false);
 
-  // ... useEffect fetchQuote ...
+  // Local state for editing
+  const [venue, setVenue] = useState<Venue>({ name: '', address: '', contactName: '', contactPhone: '', wifiSsid: '', wifiPass: '', parkingInfo: '', loadInInfo: '' });
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [crewList, setCrewList] = useState<Contact[]>([]);
+
+  useEffect(() => {
+    fetchQuote();
+    fetchCrew();
+  }, [id]);
+
+  const fetchCrew = async () => {
+      const res = await fetch('/api/crew');
+      if (res.ok) setCrewList(await res.json());
+  };
+
+  const fetchQuote = async () => {
+    try {
+      const res = await fetch(`/api/quotes/${id}`);
+      if (res.ok) {
+          const data = await res.json();
+          setQuote(data);
+          if (data.venue) setVenue(data.venue);
+          if (data.schedule) setSchedule(data.schedule);
+          if (data.attachments) setAttachments(data.attachments);
           if (data.contacts) setContacts(data.contacts);
           if (data.vehicles) setVehicles(data.vehicles);
-  // ...
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async () => {
-    // ...
+    if (!quote) return;
+    setSaving(true);
     const updatedQuote = {
         ...quote,
         venue,
@@ -45,7 +149,52 @@ export default function ProductionPage() {
         contacts,
         vehicles
     };
-    // ...
+    
+    try {
+        await fetch(`/api/quotes/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedQuote)
+        });
+        alert('Production details saved!');
+    } catch (e) {
+        alert('Failed to save.');
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const addScheduleItem = () => {
+      setSchedule([...schedule, { id: Date.now().toString(), time: '00:00', activity: '', notes: '' }]);
+  };
+
+  const updateScheduleItem = (id: string, field: keyof ScheduleItem, value: string) => {
+      setSchedule(schedule.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+
+  const removeScheduleItem = (id: string) => {
+      setSchedule(schedule.filter(item => item.id !== id));
+  };
+
+  const addAttachment = () => {
+      const name = prompt('Document Name (e.g. Stage Plot):');
+      const url = prompt('URL (Google Drive/Dropbox link):');
+      if (name && url) {
+          setAttachments([...attachments, { id: Date.now().toString(), name, url }]);
+      }
+  };
+
+  const addContact = (crewMember?: Contact) => {
+      if (crewMember) {
+          setContacts([...contacts, { ...crewMember, id: Date.now().toString() }]);
+      } else {
+          const name = prompt('Name:');
+          if (!name) return;
+          const role = prompt('Role (e.g. Client, Driver):');
+          const phone = prompt('Phone:');
+          const email = prompt('Email:');
+          setContacts([...contacts, { id: Date.now().toString(), name: name || '', role: role || '', phone: phone || '', email: email || '' }]);
+      }
   };
 
   const addVehicle = () => {
@@ -60,11 +209,47 @@ export default function ProductionPage() {
       }]);
   };
 
-  // ...
+  const exportOntime = () => {
+      const ontimeData = schedule.map(s => ({
+          time: s.time,
+          title: s.activity,
+          subtitle: s.notes,
+          type: "cue"
+      }));
+      const blob = new Blob([JSON.stringify(ontimeData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ontime-${quote?.eventName}.json`;
+      a.click();
+  };
+
+  if (loading) return <Box sx={{ p: 10, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>;
+  if (!quote) return <Typography sx={{ p: 4 }}>Quote not found</Typography>;
 
   return (
     <Box sx={{ my: 2, pb: 10 }}>
-      {/* ... header ... */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, px: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton onClick={() => router.back()} sx={{ mr: 1 }}><ArrowBackIcon /></IconButton>
+            <Box>
+                <Typography variant="h5" component="h1" fontWeight="bold">
+                    Production: {quote.eventName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {quote.startDate} • {quote.clientName}
+                </Typography>
+            </Box>
+        </Box>
+        <Button 
+            variant="contained" 
+            startIcon={<SaveIcon />} 
+            onClick={handleSave}
+            disabled={saving}
+        >
+            {saving ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </Box>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} centered variant="scrollable">
@@ -85,7 +270,6 @@ export default function ProductionPage() {
             </Box>
             
             <TextField fullWidth label="Venue Name" value={venue.name} onChange={e => setVenue({...venue, name: e.target.value})} margin="normal" />
-            {/* ... rest of venue fields ... */}
             <TextField fullWidth label="Address" value={venue.address} onChange={e => setVenue({...venue, address: e.target.value})} margin="normal" />
             
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
@@ -102,9 +286,8 @@ export default function ProductionPage() {
         </Paper>
       </TabPanel>
 
-      {/* ... Contacts Tab (Index 1) ... */}
+      {/* CONTACTS TAB (Index 1) */}
       <TabPanel value={tabValue} index={1}>
-        {/* ... existing contacts code ... */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4, gap: 2 }}>
             <Button variant="outlined" startIcon={<PersonAddIcon />} onClick={() => addContact()}>Add Manually</Button>
             <Autocomplete
@@ -116,47 +299,39 @@ export default function ProductionPage() {
             />
         </Box>
         
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             {contacts.map((contact) => (
-                <Grid item xs={12} sm={6} md={4} key={contact.id}>
-                    <Paper sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box>
-                            <Typography variant="subtitle1" fontWeight="bold">{contact.name}</Typography>
-                            <Typography variant="caption" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText', px: 1, borderRadius: 1 }}>{contact.role}</Typography>
-                            
-                            {/* Check if crew member has dietary info (need to fetch extra detail or store it in contact) */}
-                            {/* For simplicity, we assume generic contact doesn't store diet yet, but we could add it */}
-                            
-                            <Box sx={{ mt: 1 }}>
-                                {contact.phone && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mb: 0.5 }}>
-                                        <CallIcon fontSize="inherit" sx={{ mr: 1 }} />
-                                        <Typography variant="body2" component="a" href={`tel:${contact.phone}`} sx={{ color: 'inherit', textDecoration: 'none' }}>{contact.phone}</Typography>
-                                    </Box>
-                                )}
-                                {contact.email && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
-                                        <EmailIcon fontSize="inherit" sx={{ mr: 1 }} />
-                                        <Typography variant="body2" component="a" href={`mailto:${contact.email}`} sx={{ color: 'inherit', textDecoration: 'none' }}>{contact.email}</Typography>
-                                    </Box>
-                                )}
-                            </Box>
+                <Paper key={contact.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">{contact.name}</Typography>
+                        <Typography variant="caption" sx={{ bgcolor: 'primary.light', color: 'primary.contrastText', px: 1, borderRadius: 1 }}>{contact.role}</Typography>
+                        <Box sx={{ mt: 1 }}>
+                            {contact.phone && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', mb: 0.5 }}>
+                                    <CallIcon fontSize="inherit" sx={{ mr: 1 }} />
+                                    <Typography variant="body2" component="a" href={`tel:${contact.phone}`} sx={{ color: 'inherit', textDecoration: 'none' }}>{contact.phone}</Typography>
+                                </Box>
+                            )}
+                            {contact.email && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                                    <EmailIcon fontSize="inherit" sx={{ mr: 1 }} />
+                                    <Typography variant="body2" component="a" href={`mailto:${contact.email}`} sx={{ color: 'inherit', textDecoration: 'none' }}>{contact.email}</Typography>
+                                </Box>
+                            )}
                         </Box>
-                        <IconButton color="error" onClick={() => setContacts(contacts.filter(c => c.id !== contact.id))}>
-                            <DeleteIcon />
-                        </IconButton>
-                    </Paper>
-                </Grid>
+                    </Box>
+                    <IconButton color="error" onClick={() => setContacts(contacts.filter(c => c.id !== contact.id))}>
+                        <DeleteIcon />
+                    </IconButton>
+                </Paper>
             ))}
             {contacts.length === 0 && (
-                <Grid item xs={12}>
-                    <Typography align="center" color="text.secondary" sx={{ py: 4 }}>No contacts added yet.</Typography>
-                </Grid>
+                <Typography align="center" color="text.secondary" sx={{ py: 4, gridColumn: '1 / -1' }}>No contacts added yet.</Typography>
             )}
-        </Grid>
+        </Box>
       </TabPanel>
 
-      {/* Schedule Tab (Index 2) */}
+      {/* SCHEDULE TAB (Index 2) */}
       <TabPanel value={tabValue} index={2}>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
             <Button startIcon={<DownloadIcon />} onClick={exportOntime} sx={{ mr: 2 }}>Export for Ontime</Button>
@@ -227,38 +402,31 @@ export default function ProductionPage() {
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
             <Button variant="contained" startIcon={<LocalShippingIcon />} onClick={addVehicle}>Add Vehicle</Button>
         </Box>
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
             {vehicles.map((v) => (
-                <Grid item xs={12} md={6} key={v.id}>
-                    <Paper sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <Box>
-                                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <LocalShippingIcon /> {v.type}
-                                </Typography>
-                                <Typography variant="h4" sx={{ my: 1, fontFamily: 'monospace' }}>{v.plate}</Typography>
-                                <Typography color="text.secondary">Driver: {v.driverName} ({v.driverPhone})</Typography>
-                            </Box>
-                            <IconButton color="error" onClick={() => setVehicles(vehicles.filter(x => x.id !== v.id))}>
-                                <DeleteIcon />
-                            </IconButton>
+                <Paper key={v.id} sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Box>
+                            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <LocalShippingIcon /> {v.type}
+                            </Typography>
+                            <Typography variant="h4" sx={{ my: 1, fontFamily: 'monospace' }}>{v.plate}</Typography>
+                            <Typography color="text.secondary">Driver: {v.driverName} ({v.driverPhone})</Typography>
                         </Box>
-                    </Paper>
-                </Grid>
+                        <IconButton color="error" onClick={() => setVehicles(vehicles.filter(x => x.id !== v.id))}>
+                            <DeleteIcon />
+                        </IconButton>
+                    </Box>
+                </Paper>
             ))}
             {vehicles.length === 0 && (
-                <Grid item xs={12}>
-                    <Typography align="center" color="text.secondary" sx={{ py: 4 }}>No vehicles assigned.</Typography>
-                </Grid>
+                <Typography align="center" color="text.secondary" sx={{ py: 4, gridColumn: '1 / -1' }}>No vehicles assigned.</Typography>
             )}
-        </Grid>
+        </Box>
       </TabPanel>
 
       {/* DOCUMENTS TAB (Index 4) */}
       <TabPanel value={tabValue} index={4}>
-
-      {/* DOCUMENTS TAB */}
-      <TabPanel value={tabValue} index={2}>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
             <Button variant="contained" startIcon={<AddIcon />} onClick={addAttachment}>Add Link</Button>
         </Box>

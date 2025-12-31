@@ -78,7 +78,7 @@ export default function CrewPage() {
             <TableBody>
                 {crew.map((member) => (
                     <TableRow key={member.id}>
-                        <TableCell fontWeight="bold">{member.name}</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>{member.name}</TableCell>
                         <TableCell>{member.role}</TableCell>
                         <TableCell>
                             <Box sx={{ display: 'flex', gap: 1 }}>

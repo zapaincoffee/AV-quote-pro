@@ -23,6 +23,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
+import Checkbox from '@mui/material/Checkbox';
+import Tooltip from '@mui/material/Tooltip';
 
 // --- Data Structures ---
 type EquipmentItem = {
@@ -46,6 +48,8 @@ type QuoteItem = {
   totalCost: number; // Internal total cost
   note?: string;
   equipmentId?: string;
+  isExternal?: boolean;
+  supplier?: string;
 };
 
 type QuoteSection = {

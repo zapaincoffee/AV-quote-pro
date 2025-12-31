@@ -20,6 +20,9 @@ import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
+import Link from 'next/link';
 
 interface QuoteItem {
   id: string;
@@ -34,6 +37,8 @@ interface QuoteItem {
 interface QuoteSection {
   id: string;
   name: string;
+  startDate?: string;
+  endDate?: string;
   items: QuoteItem[];
 }
 
@@ -44,8 +49,6 @@ interface StaffMember {
   estimatedHours: number;
   actualHours?: number;
 }
-
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 interface Quote {
   id: string;
@@ -211,10 +214,6 @@ export default function QuoteDetailPage() {
                 </Box>
             )}
         </Box>
-import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
-
-// ... inside the component ...
-
         <Box sx={{ display: 'flex', gap: 1 }}>
             <Button 
                 variant="outlined" 
@@ -313,8 +312,15 @@ import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
 
       {quote.sections.map((section) => (
         <Paper key={section.id} sx={{ mb: 4, overflow: 'hidden' }}>
-          <Box sx={{ p: 2, bgcolor: 'grey.100', borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6">{section.name}</Typography>
+          <Box sx={{ p: 2, bgcolor: 'grey.100', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="h6" component="span">{section.name}</Typography>
+                {section.startDate && section.endDate && (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: 2, bgcolor: 'white', px: 1, py: 0.5, borderRadius: 1, border: 1, borderColor: 'grey.300' }}>
+                        {section.startDate} — {section.endDate}
+                    </Typography>
+                )}
+              </Box>
           </Box>
           <TableContainer>
             <Table size="small">
@@ -368,7 +374,7 @@ import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
             </Box>
              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h6">Grand Total:</Typography>
-                <Typography variant="h6" color="primary">{currencySymbol}{quote.total.toFixed(2)}</Typography>
+                <Typography variant="h6" color="primary">${quote.total.toFixed(2)}</Typography>
             </Box>
 
             {/* Internal Metrics */}
